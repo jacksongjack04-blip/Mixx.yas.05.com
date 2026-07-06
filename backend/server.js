@@ -9,6 +9,11 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ============================================
+// FIX: Enable trust proxy for Railway
+// ============================================
+app.set('trust proxy', 1); // Trust first proxy (Railway)
+
+// ============================================
 // TELEGRAM CREDENTIALS (from .env)
 // ============================================
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -34,6 +39,8 @@ const limiter = rateLimit({
   message: 'Too many requests, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
+  // Fix: Use 'true' to trust proxy headers
+  trustProxy: true,
 });
 app.use('/Server', limiter);
 
@@ -45,7 +52,9 @@ app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 // ============================================
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
-  console.log('📦 Body:', req.body);
+  if (req.body && Object.keys(req.body).length > 0) {
+    console.log('📦 Body:', req.body);
+  }
   next();
 });
 
